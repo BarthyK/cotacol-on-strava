@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Cotacol on Strava Route Builder",
+  "version": "0.9.0",
+  "description": "Shows your Cotacol hills as colored lines (green if done, orange if not) directly on the Strava Route Builder map, auto-synced whenever you browse cotacol.cc.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.strava.com/*",
+    "https://*.cotacol.cc/*",
+    "https://cotacol-hunting-app.azurewebsites.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Cotacol on Strava"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.cotacol.cc/*",
+        "https://*.cotacol.cc/*",
+        "https://cotacol-hunting-app.azurewebsites.net/*"
+      ],
+      "js": [
+        "cotacol-map-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.cotacol.cc/*",
+        "https://*.cotacol.cc/*",
+        "https://cotacol-hunting-app.azurewebsites.net/*"
+      ],
+      "js": [
+        "cotacol-sync.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.strava.com/maps/*",
+        "https://www.strava.com/routes/*",
+        "https://*.strava.com/maps/*",
+        "https://*.strava.com/routes/*"
+      ],
+      "js": [
+        "map-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.strava.com/maps/*",
+        "https://www.strava.com/routes/*",
+        "https://*.strava.com/maps/*",
+        "https://*.strava.com/routes/*"
+      ],
+      "js": [
+        "overlay-content.js"
+      ],
+      "css": [
+        "overlay.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "icons/icon128.png"
+  }
+}
