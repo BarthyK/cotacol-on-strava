@@ -55,6 +55,16 @@ call with open eyes:
 5. Edge may prompt you to confirm the extension's site permissions
    (strava.com / cotacol.cc) — allow it, or the content scripts won't
    inject.
+6. If an older version is listed, click **Remove** on it first.
+
+**Pin the extension to the toolbar** (Chrome and Edge):
+1. Click the puzzle-piece **Extensions** icon next to the address bar.
+2. Find **Cotacol on Strava Route Builder** and click the pin icon (Chrome)
+   or the eye icon / **Show in toolbar** (Edge).
+3. The Cotacol icon now stays visible. Click it to open the popup, which
+   shows how many climbs are bundled, how many you've done and when your
+   status last synced, plus a **Refresh status now** button. The number
+   on the icon's badge is your done count.
 
 **Then:**
 1. Make sure you're logged in on `https://www.cotacol.cc` (Connect with
