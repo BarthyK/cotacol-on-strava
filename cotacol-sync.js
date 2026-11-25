@@ -1,47 +1,24 @@
-// Runs in the ISOLATED world on Cotacol pages. Has chrome.storage access
-// but can't see google.maps objects directly -- that's why
-// cotacol-map-hook.js (MAIN world) exists and relays via postMessage.
+// Runs (isolated world) on cotacol.cc pages. Fallback sync path: fetches the
+// rider's climb status from inside the cotacol.cc tab, where the login cookie
+// is always sent, and hands it to background.js for storage.
+//
+// Normally background.js syncs on its own; this just guarantees that simply
+// visiting cotacol.cc while logged in refreshes your done/not-done status.
 
-const NS = "cotacol-map-hook";
-
-function nearestMarkerName(midpoint, points) {
-  let best = null;
-  let bestDist = Infinity;
-  for (const p of points) {
-    const dLat = p.lat - midpoint[0];
-    const dLng = p.lng - midpoint[1];
-    const d = dLat * dLat + dLng * dLng;
-    if (d < bestDist) {
-      bestDist = d;
-      best = p;
+(async () => {
+  try {
+    const sres = await fetch("/auth/session", { credentials: "include", cache: "no-store" });
+    const session = sres.ok ? await sres.json() : null;
+    if (!session?.signedIn) return;
+    const res = await fetch("/api/me/climb-status", { credentials: "include", cache: "no-store" });
+    if (!res.ok) {
+      console.warn("[cotacol] climb-status HTTP", res.status);
+      return;
     }
+    const data = await res.json();
+    const reply = await chrome.runtime.sendMessage({ type: "status-from-page", data });
+    console.log("[cotacol] status synced from cotacol.cc tab:", reply);
+  } catch (e) {
+    console.warn("[cotacol] status sync from tab failed:", e);
   }
-  return best ? best.title : "Unnamed climb";
-}
-
-window.addEventListener("message", (event) => {
-  const data = event.data;
-  if (!data || data.source !== NS || data.type !== "sync") return;
-  if (!Array.isArray(data.lines) || data.lines.length === 0) return;
-
-  chrome.storage.local.get(["cotacolData"], (res) => {
-    const byId = res.cotacolData?.byId ?? {};
-    for (const line of data.lines) {
-      const firstPath = line.paths[0];
-      const mid = firstPath[Math.floor(firstPath.length / 2)];
-      byId[line.id] = {
-        id: line.id,
-        paths: line.paths,
-        color: line.color,
-        name: nearestMarkerName(mid, data.points),
-      };
-    }
-    chrome.storage.local.set({
-      cotacolData: {
-        byId,
-        count: Object.keys(byId).length,
-        lastSyncedAt: Date.now(),
-      },
-    });
-  });
-});
+})();

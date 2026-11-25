@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Cotacol on Strava Route Builder",
-  "version": "0.9.0",
-  "description": "Shows your Cotacol hills as colored lines (green if done, orange if not) directly on the Strava Route Builder map, auto-synced whenever you browse cotacol.cc.",
+  "version": "1.0.0",
+  "description": "Shows all 1000 Cotacol climbs on the Strava Route Builder map, green if you've done them, orange if not, synced from your cotacol.cc account.",
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "https://*.strava.com/*",
-    "https://*.cotacol.cc/*",
-    "https://cotacol-hunting-app.azurewebsites.net/*"
+    "https://www.cotacol.cc/*",
+    "https://cotacol.cc/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -18,29 +19,22 @@
     "default_popup": "popup.html",
     "default_title": "Cotacol on Strava"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["data/climbs.json"],
+      "matches": ["https://*.strava.com/*"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [
         "https://www.cotacol.cc/*",
-        "https://*.cotacol.cc/*",
-        "https://cotacol-hunting-app.azurewebsites.net/*"
-      ],
-      "js": [
-        "cotacol-map-hook.js"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": [
-        "https://www.cotacol.cc/*",
-        "https://*.cotacol.cc/*",
-        "https://cotacol-hunting-app.azurewebsites.net/*"
+        "https://cotacol.cc/*"
       ],
       "js": [
         "cotacol-sync.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     },
     {
       "matches": [

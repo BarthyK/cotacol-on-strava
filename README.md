@@ -23,8 +23,10 @@ call with open eyes:
   paste it into an AI assistant and ask it to summarize what the code
   does), you can verify for yourself exactly what it does and doesn't
   touch.
-- **What it actually does, in plain terms:** it reads climb data rendered
-  on cotacol.cc's own map, and draws that data onto Strava's map. It does
+- **What it actually does, in plain terms:** it ships the public shapes of
+  all 1000 Cotacol climbs inside the extension, reads *your* done/not-done
+  status from cotacol.cc (using your existing login there), and draws the
+  climbs onto Strava's map. It does
   not collect analytics, does not send your data anywhere except your own
   browser's local storage, and does not contact any server other than
   cotacol.cc and strava.com (the sites you're already using it on).
@@ -55,65 +57,66 @@ call with open eyes:
    inject.
 
 **Then:**
-1. Visit `https://www.cotacol.cc/map` while logged in (it redirects to
-   `cotacol-hunting-app.azurewebsites.net` — that's expected). Let the map
-   fully render with lines, and wait a few seconds — the extension icon
-   badge should pick up a count.
+1. Make sure you're logged in on `https://www.cotacol.cc` (Connect with
+   Strava). Opening any cotacol.cc page also refreshes your status.
 2. Go create or edit a route on Strava's map. A small "Cotacol hills"
    panel appears on the right edge of the screen. Toggle it on.
+   - **Green** = done, **orange** = to do, **dark outline** = bookmarked
+     (planned) on Cotacol, **grey** = your status hasn't synced yet.
+   - Click a line to see its number, name, points and links to the Cotacol
+     climb and the Strava segment.
 
 ## How it works
 
-Cotacol is a **Blazor Server** app — it pushes data over a
-SignalR/WebSocket connection, not as fetchable JSON, so there's no REST
-endpoint to call directly. Instead, this extension patches the client-side
-Google Maps rendering APIs that Cotacol's own map uses (`google.maps.Marker`
-for climb names, plus both `google.maps.Polyline` and `google.maps.Data`
-for line shapes and colors, since which one Cotacol actually uses varied
-across sessions during development) to capture the data as it's drawn.
-
-On the Strava side, Strava's Route Builder runs on **Mapbox GL JS** and
-conveniently exposes a public global for it: `window.strava.maps.getMap()`.
-The extension uses Mapbox GL's normal `addSource`/`addLayer` API to draw a
-`line` layer straight from your synced Cotacol data, with a data-driven
-`line-color` expression so Cotacol's green/orange carries through exactly.
+- **Geometry is bundled.** `data/climbs.json` holds all 1000 climbs (id,
+  number, name, points, Strava segment id and encoded polyline), generated
+  from Cotacol's public `https://www.cotacol.cc/api/climbs`. Climbs rarely
+  change; to refresh, run
+  `powershell -ExecutionPolicy Bypass -File tools\build-climbs.ps1` and
+  reload the extension.
+- **Only your status is fetched.** `background.js` calls
+  `https://www.cotacol.cc/api/me/climb-status` with your cotacol.cc login,
+  which returns `{ id, done, planned, ... }` per climb. It runs on install,
+  on browser startup, every 3 hours, when you open the Route Builder (if
+  the last sync is older than 1 hour), and when you click **Refresh**.
+  `cotacol-sync.js` does the same fetch from inside any cotacol.cc tab you
+  open, as a fallback.
+- **Strava side.** Strava's Route Builder runs on Mapbox GL JS and exposes
+  `window.strava.maps.getMap()`. `map-hook.js` adds GeoJSON line, start-dot
+  and checkered-flag layers (flags fade in between zoom 10 and 12) and
+  re-adds them if you switch base map style.
 
 ## Known limitations
 
-- **Clicking a hill line doesn't drop a waypoint yet** — it logs to the
-  console; you still click the same spot on Strava's real map to add it.
-- **Coverage builds up as you browse Cotacol**, rather than syncing
-  instantly in one shot in every session — if a hill hasn't rendered on
-  Cotacol's map at some point since install, it won't show up on Strava
-  yet.
-- **Both Cotacol and Strava can change their frontend code at any time**,
-  which may silently break this extension until it's updated (this
-  happened more than once during development).
+- **Clicking a hill line doesn't drop a waypoint** — it shows the climb's
+  details in the panel; click the same spot on Strava's map to route there.
+- **Cotacol and Strava can change their sites at any time**, which may
+  break this extension until it's updated.
 
 ## Troubleshooting
 
-**Check this first:** on the Cotacol map page, open DevTools (F12) →
-Console. If you see `net::ERR_BLOCKED_BY_CLIENT` errors (especially for
-`maps.googleapis.com`), your browser's tracking prevention (or an
-ad-blocker) is blocking Cotacol's map from loading at all. Fix: click the
-padlock/shield icon in the address bar → allow tracking/ads for that site,
-then reload.
-
-If sync still shows 0 climbs after that, open the console on the Cotacol
-page and run:
-```js
-window.__cotacolDebug.isPatched()
-window.__cotacolDebug.getDataLayerCount()
-window.__cotacolDebug.inspectDataLayers()
-```
-and open an [Issue](../../issues) with what those return, plus any
-`[cotacol]`-prefixed console lines you see.
+- **All hills are grey / popup says "Not signed in":** open
+  https://www.cotacol.cc, sign in, then click **Refresh status now** in the
+  extension popup (or the panel on Strava).
+- **No panel on Strava:** make sure you're on `strava.com/maps/...` or
+  `strava.com/routes/...` and reload with Ctrl+Shift+R.
+- **Debug helpers** — in DevTools → Console on the Strava Route Builder:
+  ```js
+  __cotacolDebug.isMapConnected()
+  __cotacolDebug.getCounts()      // { done, todo, unknown, planned }
+  __cotacolDebug.getStatus()      // last sync time, error, source
+  __cotacolDebug.hasLayers()
+  __cotacolDebug.findClimb(241)   // or a name fragment
+  __cotacolDebug.syncNow()
+  ```
+  The service worker (chrome://extensions → *service worker* link) logs
+  `[cotacol]` lines for each sync attempt.
 
 ## Contributing
 
 Pull requests welcome — especially fixes for whatever Cotacol/Strava
-change next. See `cotacol-map-hook.js` for the Cotacol-side capture logic
-and `map-hook.js` for the Strava-side rendering.
+change next. `background.js` handles the status sync, `overlay-content.js`
+merges bundled climbs with status, and `map-hook.js` does the rendering.
 
 ## License
 

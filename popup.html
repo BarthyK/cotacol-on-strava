@@ -3,17 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width: 240px; padding: 12px; color: #242428; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; width: 250px; padding: 12px; color: #242428; }
     h1 { font-size: 14px; margin: 0 0 8px; }
     p { font-size: 12px; color: #555; margin: 4px 0; }
-    button { margin-top: 10px; width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px; background: #f7f7f7; cursor: pointer; font-size: 12px; }
+    a { color: #fc4c02; }
+    button { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 6px; background: #f7f7f7; cursor: pointer; font-size: 12px; }
     button:hover { background: #eee; }
+    button.primary { background: #fc4c02; border-color: #fc4c02; color: #fff; }
+    button.primary:hover { background: #e34402; }
   </style>
 </head>
 <body>
   <h1>Cotacol on Strava</h1>
+  <p id="climbs">Loading...</p>
   <p id="status">Loading...</p>
-  <button id="clear">Clear synced data</button>
+  <button id="sync" class="primary">Refresh status now</button>
+  <button id="clear">Clear synced status</button>
   <script src="popup.js"></script>
 </body>
 </html>

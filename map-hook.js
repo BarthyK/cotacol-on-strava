@@ -15,7 +15,9 @@
   const START_ID = "cotacol-hills-start";
   const END_ID = "cotacol-hills-end";
   const FLAG_IMAGE = "cotacol-flag-icon";
+  const CASING_ID = "cotacol-hills-planned";
   let map = null;
+  let lastStatus = null; // sync summary from overlay-content.js, for debugging
   let linesById = {}; // keep the last-sent set so click lookups work
   let lastLines = null; // reapply after style reloads (e.g. satellite toggle)
 
@@ -27,7 +29,7 @@
       features: lines.map((l) => ({
         type: "Feature",
         id: l.id,
-        properties: { id: l.id, name: l.name, color: l.color },
+        properties: { id: l.id, name: l.name, color: l.color, state: l.state, planned: !!l.planned },
         geometry: {
           type: "MultiLineString",
           coordinates: l.paths.map((path) => path.map(([lat, lng]) => [lng, lat])),
@@ -107,6 +109,18 @@
         map.addSource(END_ID, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       }
 
+      if (!map.getLayer(CASING_ID)) {
+        // Dark outline under climbs you bookmarked ("planned") on Cotacol.
+        map.addLayer({
+          id: CASING_ID,
+          type: "line",
+          source: SOURCE_ID,
+          filter: ["==", ["get", "planned"], true],
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-width": 8, "line-color": "#1f2a44", "line-opacity": 0.9 },
+        });
+      }
+
       if (!map.getLayer(SOURCE_ID)) {
         map.addLayer({
           id: SOURCE_ID,
@@ -115,7 +129,7 @@
           layout: { "line-join": "round", "line-cap": "round" },
           paint: {
             "line-width": 4,
-            "line-color": ["get", "color"], // straight from Cotacol's own green/orange
+            "line-color": ["get", "color"], // done / to do / unknown, set in overlay-content.js
             "line-opacity": 0.85,
           },
         });
@@ -205,12 +219,38 @@
   window.addEventListener("message", (event) => {
     const data = event.data;
     if (!data || data.target !== NS) return;
-    if (data.type === "add-markers") setLines(data.markers);
+    if (data.type === "add-markers") {
+      lastStatus = data.status ?? lastStatus;
+      setLines(data.markers);
+    }
     if (data.type === "clear-markers") clearLines();
     if (data.type === "request-bounds") {
       window.postMessage({ source: NS, type: "map-ready" }, "*");
     }
   });
+
+  // Console helpers on the Strava Route Builder page.
+  window.__cotacolDebug = {
+    isMapConnected: () => !!map,
+    getClimbCount: () => (lastLines ? lastLines.length : 0),
+    getCounts: () => {
+      const c = { done: 0, todo: 0, unknown: 0, planned: 0 };
+      for (const l of lastLines || []) {
+        c[l.state] = (c[l.state] || 0) + 1;
+        if (l.planned) c.planned++;
+      }
+      return c;
+    },
+    getStatus: () => lastStatus,
+    lastError: () => lastStatus?.error ?? null,
+    findClimb: (q) =>
+      (lastLines || []).filter((l) => String(l.n) === String(q) || l.name.toLowerCase().includes(String(q).toLowerCase())),
+    hasLayers: () => !!map && [SOURCE_ID, CASING_ID, START_ID, END_ID].map((id) => [id, !!map.getLayer(id)]),
+    syncNow: () => {
+      window.postMessage({ source: NS, type: "sync-now" }, "*");
+      return "sync requested — watch the panel / run getStatus() in a few seconds";
+    },
+  };
 
   let tries = 0;
   const interval = setInterval(() => {
